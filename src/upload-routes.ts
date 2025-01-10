@@ -5,6 +5,7 @@ import debug from 'debug'
 import ffmpeg from 'fluent-ffmpeg'
 import numeral from 'numeral'
 import { config } from './config'
+import { getDB, saveDB } from './db'
 import { telegramBot } from './telegram-bot'
 import { sleep } from './utils'
 
@@ -64,11 +65,31 @@ export async function uploadRouteVideo(fileName: string) {
     return
   }
 
+  // Skip if the camera video has already been uploaded
+  let db = await getDB()
+  if (db.routes[routeId]?.cameras[camera]?.uploadedAt) {
+    log('Camera video already uploaded:', camera)
+    return
+  }
+
   if (IS_TELEGRAM_ENABLED) {
     await uploadToTelegram({ camera, fileName, routeId })
   }
 
   log('Video uploaded:', fileName)
+
+  // Update DB
+  db = await getDB()
+  db.routes[routeId] = {
+    routeId,
+    cameras: {
+      ...db.routes[routeId]?.cameras,
+      [camera]: {
+        uploadedAt: new Date().toISOString(),
+      },
+    },
+  }
+  await saveDB(db)
 }
 
 async function uploadToTelegram({
