@@ -19,13 +19,21 @@ const parsedEnvs = parsed! as {
   TELEGRAM_CHAT_ID?: string
 }
 
+const CAMERAS = ['fcamera', 'ecamera', 'dcamera'] as const
 const DATA_PATH = parsedEnvs.DATA_PATH || join(process.cwd(), 'data')
 const DB_PATH = join(DATA_PATH, 'db.json')
-const CAMERAS = ['qcamera', 'fcamera', 'ecamera', 'dcamera'] as const
+const VIDEOS_PATH = join(DATA_PATH, 'videos')
+const TMP_PATH = join(DATA_PATH, 'tmp')
+const TELEGRAM_CHUNK_SIZE = 35 * 1024 * 1024
+const TELEGRAM_MAX_VIDEOS_PER_MESSAGE = 1
 
 export const config = {
   ...parsedEnvs,
   DATA_PATH,
   DB_PATH,
   CAMERAS,
+  VIDEOS_PATH,
+  TMP_PATH,
+  TELEGRAM_CHUNK_SIZE,
+  TELEGRAM_MAX_VIDEOS_PER_MESSAGE,
 }

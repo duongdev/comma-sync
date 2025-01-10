@@ -14,8 +14,8 @@ const DEFAULT_DB = {
       cameras: Record<
         string,
         {
-          downloadedAt: string
-          uploadedAt: string
+          downloadedAt?: string
+          uploadedAt?: string
         }
       >
     }
@@ -47,7 +47,7 @@ export async function getDB(): Promise<Database> {
 
 export async function saveDB(db: Database): Promise<Database> {
   await verifyDBFile()
-  await writeFile('./db.json', JSON.stringify(db, null, 2), 'utf8')
+  await writeFile(DB_PATH, JSON.stringify(db, null, 2), 'utf8')
 
   return db
 }

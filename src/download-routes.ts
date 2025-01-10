@@ -3,6 +3,7 @@ import { readdir, rename, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import axios from 'axios'
 import { config } from './config'
+import { getDB, saveDB } from './db'
 import { sleep } from './utils'
 
 const debug = require('debug')('comma-sync:routes')
@@ -43,6 +44,14 @@ export async function downloadRouteVideos(routeId: string) {
   const log = debug.extend(`uploadRoute:${routeId}`)
 
   for (const camera of config.CAMERAS) {
+    let db = await getDB()
+
+    // Skip if the camera video has already been downloaded
+    if (db.routes[routeId]?.cameras[camera]?.downloadedAt) {
+      log('Camera video already downloaded:', camera)
+      continue
+    }
+
     log('Downloading route camera:', camera)
 
     const videoUrl = `${config.FLEET_URL}/footage/full/${camera}/${routeId}?bypass_token=${config.FLEET_TOKEN}`
@@ -75,6 +84,19 @@ export async function downloadRouteVideos(routeId: string) {
         }
       })
     })
+
+    // Log the downloaded video
+    db = await getDB()
+    db.routes[routeId] = {
+      routeId,
+      cameras: {
+        ...db.routes[routeId]?.cameras,
+        [camera]: {
+          downloadedAt: new Date().toISOString(),
+        },
+      },
+    }
+    await saveDB(db)
 
     log(
       `Downloaded camera video: ${FILE_NAME} (${Math.round(writeStream.bytesWritten / 1024 / 1024)} MBs)`,

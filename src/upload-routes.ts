@@ -3,21 +3,21 @@ import { join } from 'node:path'
 import { format } from 'date-fns'
 import debug from 'debug'
 import ffmpeg from 'fluent-ffmpeg'
-import type { InputMediaVideo } from 'node-telegram-bot-api'
 import numeral from 'numeral'
 import { config } from './config'
-import { verifyPath } from './fs'
 import { telegramBot } from './telegram-bot'
 import { sleep } from './utils'
 
-const l = debug('comma-sync:upload-routes')
-const VIDEOS_PATH = verifyPath(config.DATA_PATH, 'videos')
-const TMP_PATH = verifyPath(config.DATA_PATH, 'tmp')
+const {
+  VIDEOS_PATH,
+  TMP_PATH,
+  TELEGRAM_CHUNK_SIZE,
+  TELEGRAM_MAX_VIDEOS_PER_MESSAGE,
+} = config
 const IS_TELEGRAM_ENABLED = !!(
   config.TELEGRAM_BOT_TOKEN && config.TELEGRAM_CHAT_ID
 )
-const TELEGRAM_CHUNK_SIZE = 50 * 1024 * 1024
-const TELEGRAM_MAX_VIDEOS_PER_MESSAGE = 10
+const l = debug('comma-sync:upload-routes')
 
 export async function uploadRouteVideos() {
   const log = l.extend('uploadRouteVideos')
@@ -97,6 +97,7 @@ async function uploadToTelegram({
         height,
         width,
         duration,
+        // @ts-expect-error
         supports_streaming: true,
       },
       { contentType: 'video/mp4', filename: fileName },
@@ -105,44 +106,30 @@ async function uploadToTelegram({
     return
   }
 
-  let chunkPaths: string[] = []
   let messageIndex = 0
   const totalMessages = Math.ceil(totalChunks / TELEGRAM_MAX_VIDEOS_PER_MESSAGE)
 
-  async function sendMessageGroup() {
-    log('Sending video chunks...')
-    const caption = `🚗 Route: ${date}\n📷 Camera: ${camera}\n💽 Part: ${++messageIndex}/${totalMessages}`
-    const message: InputMediaVideo[] = chunkPaths.map((path) => ({
-      media: path,
-      caption,
-      type: 'video',
-      supports_streaming: true,
-      duration,
-      width,
-      height,
-    }))
-
-    await telegramBot?.sendMediaGroup(config.TELEGRAM_CHAT_ID!, message)
-
-    // Delete the chunks after sending
-    chunkPaths.forEach((path) => {
-      unlink(path)
-    })
-
-    chunkPaths = []
-  }
-
   await splitVideoToChunks({ videoPath, routeId, camera }, (chunkPath) => {
-    chunkPaths.push(chunkPath)
+    const caption = `🚗 Route: ${date}\n📷 Camera: ${camera}\n💽 Part: ${++messageIndex}/${totalMessages}`
 
-    if (chunkPaths.length === TELEGRAM_MAX_VIDEOS_PER_MESSAGE) {
-      sendMessageGroup()
-    }
+    telegramBot
+      ?.sendVideo(
+        config.TELEGRAM_CHAT_ID!,
+        chunkPath,
+        {
+          caption,
+          height,
+          width,
+          duration,
+          // @ts-expect-error
+          supports_streaming: true,
+        },
+        { contentType: 'video/mp4', filename: fileName },
+      )
+      .finally(() => {
+        unlink(chunkPath)
+      })
   })
-
-  if (chunkPaths.length) {
-    await sendMessageGroup()
-  }
 }
 
 async function splitVideoToChunks(
