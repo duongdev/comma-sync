@@ -2,6 +2,7 @@ import { createWriteStream } from 'node:fs'
 import { readdir, rename, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
 import axios from 'axios'
+import numeral from 'numeral'
 import { config } from './config'
 import { getDB, saveDB } from './db'
 import { sleep } from './utils'
@@ -87,7 +88,10 @@ export async function downloadRouteVideos(routeId: string) {
           clearInterval(interval)
           unlink(TMP_FILE_PATH)
           resolve(false)
+          return
         }
+
+        log(`Downloaded ${numeral(writeStream.bytesWritten).format('0.0b')}`)
       }, CHUNK_TIMEOUT_MS)
       writeStream.on('finish', () => {
         clearInterval(interval)
