@@ -1,11 +1,10 @@
-import { rm } from 'node:fs/promises'
 import Debug from 'debug'
 import { config } from './config'
 import { verifyDBFile } from './db'
 import { cleanUpTempDownloadFiles, downloadRoutes } from './download-routes'
 import { verifyPath } from './fs'
 import { getTelegramBotInfo } from './telegram-bot'
-import { uploadRouteVideos } from './upload-routes'
+import { cleanUpTempUploadFiles, uploadRouteVideos } from './upload-routes'
 
 Debug.enable('comma-sync:*')
 const debug = Debug('comma-sync')
@@ -17,9 +16,9 @@ async function main() {
   // Verify the database file exists
   await verifyDBFile()
   verifyPath(config.VIDEOS_PATH)
-  await cleanUpTempDownloadFiles()
-  await rm(config.TMP_PATH, { force: true, recursive: true })
   verifyPath(config.TMP_PATH)
+  await cleanUpTempDownloadFiles()
+  await cleanUpTempUploadFiles()
 
   // Initialize telegram bot
   const botInfo = await getTelegramBotInfo()

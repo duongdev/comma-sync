@@ -211,3 +211,16 @@ async function getVideoInfo(videoPath: string): Promise<{
     })
   })
 }
+
+export async function cleanUpTempUploadFiles() {
+  const log = l.extend('cleanUpTempUploadFiles')
+
+  log('Cleaning up temp uploads files in:', TMP_PATH)
+
+  const files = await readdir(TMP_PATH)
+
+  for (const file of files) {
+    await unlink(join(TMP_PATH, file))
+    log('Removed file:', file)
+  }
+}
