@@ -17,9 +17,9 @@ async function main() {
   // Verify the database file exists
   await verifyDBFile()
   verifyPath(config.VIDEOS_PATH)
-  verifyPath(config.TMP_PATH)
   await cleanUpTempDownloadFiles()
   await rm(config.TMP_PATH, { force: true, recursive: true })
+  verifyPath(config.TMP_PATH)
 
   // Initialize telegram bot
   const botInfo = await getTelegramBotInfo()
