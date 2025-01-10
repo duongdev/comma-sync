@@ -1,0 +1,47 @@
+{
+  "name": "comma-sync",
+  "version": "0.0.1",
+  "description": "Sync Comma3X Camera Routes to Custom Storages",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1",
+    "start": "ts-node --transpileOnly src/index.ts"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/duongdev/comma-sync.git"
+  },
+  "keywords": [
+    "openpilot",
+    "comma3x",
+    "telegram",
+    "storage",
+    "sync"
+  ],
+  "author": "Dustin Do <dustin.do95@gmail.com>",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/duongdev/comma-sync/issues"
+  },
+  "homepage": "https://github.com/duongdev/comma-sync#readme",
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/debug": "^4.1.12",
+    "@types/node": "^22.10.5",
+    "@types/node-telegram-bot-api": "^0.64.7",
+    "ts-node": "^10.9.2",
+    "tslib": "^2.8.1",
+    "typescript": "^5.7.3"
+  },
+  "dependencies": {
+    "@dotenvx/dotenvx": "^1.32.1",
+    "@types/fluent-ffmpeg": "^2.1.27",
+    "@types/numeral": "^2.0.5",
+    "axios": "^1.7.9",
+    "date-fns": "^4.1.0",
+    "debug": "^4.4.0",
+    "fluent-ffmpeg": "^2.1.3",
+    "node-telegram-bot-api": "^0.66.0",
+    "numeral": "^2.0.6"
+  }
+}
