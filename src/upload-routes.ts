@@ -110,7 +110,7 @@ async function uploadToTelegram({
   const totalMessages = Math.ceil(totalChunks / TELEGRAM_MAX_VIDEOS_PER_MESSAGE)
 
   await splitVideoToChunks({ videoPath, routeId, camera }, (chunkPath) => {
-    const caption = `🚗 Route: ${date}\n📷 Camera: ${camera}\n💽 Part: ${++messageIndex}/${totalMessages}`
+    const caption = `🚗 Route: ${date}\n📷 Camera: ${camera} (${routeId})\n💽 Part: ${++messageIndex}/${totalMessages}`
 
     telegramBot
       ?.sendVideo(
