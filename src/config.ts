@@ -14,6 +14,7 @@ if (!parsed) {
 const parsedEnvs = parsed! as {
   FLEET_URL: string
   CAMERAS: string
+  DELETE_UPLOADED_VIDEOS: string
   FLEET_TOKEN?: string
   DATA_PATH?: string
   TELEGRAM_BOT_TOKEN?: string
@@ -27,6 +28,7 @@ const VIDEOS_PATH = join(DATA_PATH, 'videos')
 const TMP_PATH = join(DATA_PATH, 'tmp')
 const TELEGRAM_CHUNK_SIZE = 35 * 1024 * 1024
 const TELEGRAM_MAX_VIDEOS_PER_MESSAGE = 1
+const DELETE_UPLOADED_VIDEOS = parsedEnvs.DELETE_UPLOADED_VIDEOS === 'true'
 
 export const config = {
   ...parsedEnvs,
@@ -37,4 +39,5 @@ export const config = {
   TMP_PATH,
   TELEGRAM_CHUNK_SIZE,
   TELEGRAM_MAX_VIDEOS_PER_MESSAGE,
+  DELETE_UPLOADED_VIDEOS,
 }

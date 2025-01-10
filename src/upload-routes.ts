@@ -13,6 +13,7 @@ const {
   TMP_PATH,
   TELEGRAM_CHUNK_SIZE,
   TELEGRAM_MAX_VIDEOS_PER_MESSAGE,
+  DELETE_UPLOADED_VIDEOS,
 } = config
 const IS_TELEGRAM_ENABLED = !!(
   config.TELEGRAM_BOT_TOKEN && config.TELEGRAM_CHAT_ID
@@ -27,8 +28,11 @@ export async function uploadRouteVideos() {
 
   for (const video of videos) {
     await uploadRouteVideo(video)
+
     // Delete the video after uploading
-    await unlink(join(VIDEOS_PATH, video))
+    if (DELETE_UPLOADED_VIDEOS) {
+      await unlink(join(VIDEOS_PATH, video))
+    }
   }
 
   log('Route videos uploaded')

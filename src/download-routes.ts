@@ -6,6 +6,8 @@ import { config } from './config'
 import { getDB, saveDB } from './db'
 import { sleep } from './utils'
 
+const CHUNK_TIMEOUT_MS = 5000
+
 const debug = require('debug')('comma-sync:routes')
 
 export async function downloadRoutes() {
@@ -16,7 +18,9 @@ export async function downloadRoutes() {
 
     for (const routeId of routes) {
       log('Uploading route:', routeId)
-      await downloadRouteVideos(routeId)
+      await downloadRouteVideos(routeId).catch((error) => {
+        log('Error downloading route videos:', error)
+      })
     }
   } catch (error) {
     log('Error downloading routes:', error)
@@ -41,7 +45,7 @@ export async function getRoutes() {
 }
 
 export async function downloadRouteVideos(routeId: string) {
-  const log = debug.extend(`uploadRoute:${routeId}`)
+  const log = debug.extend(`downloadRouteVideos:${routeId}`)
 
   for (const camera of config.CAMERAS) {
     let db = await getDB()
@@ -58,17 +62,42 @@ export async function downloadRouteVideos(routeId: string) {
 
     log('Camera video URL:', videoUrl)
 
-    const response = await axios.get(videoUrl, { responseType: 'stream' })
+    let lastChunkAt = Date.now()
+    const response = await axios.get(videoUrl, {
+      responseType: 'stream',
+      onDownloadProgress() {
+        lastChunkAt = Date.now()
+      },
+      timeout: CHUNK_TIMEOUT_MS,
+    })
     const FILE_NAME = `${routeId}-${camera}.mp4`
     const VIDEOS_PATH = join(config.DATA_PATH, 'videos')
+    const TMP_FILE_PATH = join(VIDEOS_PATH, `${FILE_NAME}.tmp`)
 
-    const writeStream = createWriteStream(join(VIDEOS_PATH, `${FILE_NAME}.tmp`))
+    const writeStream = createWriteStream(TMP_FILE_PATH)
 
     response.data.pipe(writeStream)
 
-    await new Promise((resolve) => {
-      writeStream.on('finish', resolve)
+    const success = await new Promise((resolve) => {
+      // Abort the download if no chunks are received for 5 seconds
+      const interval = setInterval(() => {
+        if (Date.now() - lastChunkAt > CHUNK_TIMEOUT_MS) {
+          log('No chunks received for 5 seconds, aborting download')
+          response.data.destroy()
+          clearInterval(interval)
+          unlink(TMP_FILE_PATH)
+          resolve(false)
+        }
+      }, CHUNK_TIMEOUT_MS)
+      writeStream.on('finish', () => {
+        clearInterval(interval)
+        resolve(true)
+      })
     })
+
+    if (!success) {
+      return
+    }
 
     // Rename the file
     await new Promise((resolve, reject) => {
