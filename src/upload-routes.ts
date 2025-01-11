@@ -3,7 +3,6 @@ import { join } from 'node:path'
 import { format } from 'date-fns'
 import debug from 'debug'
 import ffmpeg from 'fluent-ffmpeg'
-import numeral from 'numeral'
 import { config } from './config'
 import { getDB, saveDB } from './db'
 import { telegramBot } from './telegram-bot'
@@ -23,20 +22,23 @@ const l = debug('comma-sync:upload-routes')
 
 export async function uploadRouteVideos() {
   const log = l.extend('uploadRouteVideos')
-  log('Uploading route videos...')
 
   const videos = await getVideosToUpload()
 
   for (const video of videos) {
-    await uploadRouteVideo(video)
+    try {
+      await uploadRouteVideo(video)
 
-    // Delete the video after uploading
-    if (DELETE_UPLOADED_VIDEOS) {
-      await unlink(join(VIDEOS_PATH, video))
+      // Delete the video after uploading
+      if (DELETE_UPLOADED_VIDEOS) {
+        await unlink(join(VIDEOS_PATH, video))
+      }
+    } catch (error) {
+      log('Error uploading video:', video, error)
+      continue
     }
   }
 
-  log('Route videos uploaded')
   await sleep(5000)
   await uploadRouteVideos()
 }
@@ -44,12 +46,12 @@ export async function uploadRouteVideos() {
 export async function getVideosToUpload() {
   const log = l.extend('getVideosToUpload')
 
-  log('Getting videos to upload from:', VIDEOS_PATH)
-
   const files = await readdir(VIDEOS_PATH)
   const videos = files.filter((file) => file.endsWith('.mp4'))
 
-  log(`Found ${videos.length} videos to upload`, videos)
+  if (videos.length) {
+    log(`Found ${videos.length} videos to upload`, videos)
+  }
 
   return videos
 }
@@ -65,31 +67,11 @@ export async function uploadRouteVideo(fileName: string) {
     return
   }
 
-  // Skip if the camera video has already been uploaded
-  let db = await getDB()
-  if (db.routes[routeId]?.cameras[camera]?.uploadedAt) {
-    log('Camera video already uploaded:', camera)
-    return
-  }
-
   if (IS_TELEGRAM_ENABLED) {
     await uploadToTelegram({ camera, fileName, routeId })
   }
 
   log('Video uploaded:', fileName)
-
-  // Update DB
-  db = await getDB()
-  db.routes[routeId] = {
-    routeId,
-    cameras: {
-      ...db.routes[routeId]?.cameras,
-      [camera]: {
-        uploadedAt: new Date().toISOString(),
-      },
-    },
-  }
-  await saveDB(db)
 }
 
 async function uploadToTelegram({
@@ -108,53 +90,79 @@ async function uploadToTelegram({
 
   const { birthtime, size } = await stat(videoPath)
   const date = format(birthtime, 'yyyy-MM-dd HH:mm:ss')
-  const fileSize = numeral(size).format('0.0b')
+  // const fileSize = numeral(size).format('0.0b')
   const totalChunks = Math.ceil(size / TELEGRAM_CHUNK_SIZE)
   const { height, width, duration } = await getVideoInfo(videoPath)
+  let db = await getDB()
+  let uploadedChunks =
+    db.routes[routeId]?.cameras[camera]?.telegram?.uploadedChunks || 0
 
-  if (totalChunks === 1) {
-    const caption = `🚗 Route: ${date}\n📷 Camera: ${camera}\n💽 Size: ${fileSize}`
-    await telegramBot?.sendVideo(
-      config.TELEGRAM_CHAT_ID!,
-      videoPath,
-      {
-        caption,
-        height,
-        width,
-        duration,
-        // @ts-expect-error
-        supports_streaming: true,
-      },
-      { contentType: 'video/mp4', filename: fileName },
-    )
-
+  if (uploadedChunks >= totalChunks) {
+    log('Video already uploaded:', fileName)
     return
   }
+
+  // if (totalChunks === 1) {
+  //   const caption = `🚗 Route: ${date}\n📷 Camera: ${camera}\n💽 Size: ${fileSize}`
+  //   await telegramBot?.sendVideo(
+  //     config.TELEGRAM_CHAT_ID!,
+  //     videoPath,
+  //     {
+  //       caption,
+  //       height,
+  //       width,
+  //       duration,
+  //       // @ts-expect-error
+  //       supports_streaming: true,
+  //     },
+  //     { contentType: 'video/mp4', filename: fileName },
+  //   )
+
+  //   return
+  // }
 
   let messageIndex = 0
   const totalMessages = Math.ceil(totalChunks / TELEGRAM_MAX_VIDEOS_PER_MESSAGE)
 
-  await splitVideoToChunks({ videoPath, routeId, camera }, (chunkPath) => {
-    const caption = `🚗 Route: ${date}\n📷 Camera: ${camera} (${routeId})\n💽 Part: ${++messageIndex}/${totalMessages}`
+  await splitVideoToChunks(
+    { videoPath, routeId, camera, startChunkIndex: uploadedChunks },
+    (chunkPath) => {
+      const caption = `🚗 Route: ${date}\n📷 Camera: ${camera} (${routeId})\n💽 Part: ${++messageIndex}/${totalMessages}`
 
-    telegramBot
-      ?.sendVideo(
-        config.TELEGRAM_CHAT_ID!,
-        chunkPath,
-        {
-          caption,
-          height,
-          width,
-          duration,
-          // @ts-expect-error
-          supports_streaming: true,
-        },
-        { contentType: 'video/mp4', filename: fileName },
-      )
-      .finally(() => {
-        unlink(chunkPath)
-      })
-  })
+      telegramBot
+        ?.sendVideo(
+          config.TELEGRAM_CHAT_ID!,
+          chunkPath,
+          {
+            caption,
+            height,
+            width,
+            duration,
+            // @ts-expect-error
+            supports_streaming: true,
+          },
+          { contentType: 'video/mp4', filename: fileName },
+        )
+        .then(async () => {
+          uploadedChunks++
+
+          db = await getDB()
+          db.routes[routeId] = {
+            routeId,
+            cameras: {
+              ...db.routes[routeId]?.cameras,
+              [camera]: {
+                telegram: { uploadedChunks },
+              },
+            },
+          }
+          await saveDB(db)
+        })
+        .finally(() => {
+          unlink(chunkPath)
+        })
+    },
+  )
 }
 
 async function splitVideoToChunks(
@@ -163,7 +171,14 @@ async function splitVideoToChunks(
     chunkSize = TELEGRAM_CHUNK_SIZE,
     routeId,
     camera,
-  }: { videoPath: string; chunkSize?: number; routeId: string; camera: string },
+    startChunkIndex = 0,
+  }: {
+    videoPath: string
+    chunkSize?: number
+    routeId: string
+    camera: string
+    startChunkIndex?: number
+  },
   onChunkComplete?: (chunkPath: string) => void,
 ) {
   const log = l.extend('splitVideoToChunks')
@@ -179,8 +194,8 @@ async function splitVideoToChunks(
       const duration = metadata.format.duration!
       const targetDuration = (chunkSize / fileSize) * duration
 
-      let startTime = 0
-      let chunkIndex = 0
+      let startTime = startChunkIndex * targetDuration
+      let chunkIndex = startChunkIndex
 
       function splitPart() {
         const endTime = Math.min(startTime + targetDuration, duration)

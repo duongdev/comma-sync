@@ -19,12 +19,19 @@ export async function downloadRoutes() {
 
     for (const routeId of routes) {
       log('Uploading route:', routeId)
-      await downloadRouteVideos(routeId).catch((error) => {
+      try {
+        await downloadRouteVideos(routeId).catch((error) => {
+          log('Error downloading route videos:', error)
+        })
+      } catch (error) {
         log('Error downloading route videos:', error)
-      })
+        continue
+      }
     }
   } catch (error) {
     log('Error downloading routes:', error)
+    await sleep(5000)
+    await downloadRoutes()
   }
 
   await sleep(5000)
@@ -64,6 +71,8 @@ export async function downloadRouteVideos(routeId: string) {
     log('Camera video URL:', videoUrl)
 
     let lastChunkAt = Date.now()
+    let lastDownloadedBytes = 0
+    const startedDownloadingAt = Date.now()
     const response = await axios.get(videoUrl, {
       responseType: 'stream',
       onDownloadProgress() {
@@ -91,7 +100,15 @@ export async function downloadRouteVideos(routeId: string) {
           return
         }
 
-        log(`Downloaded ${numeral(writeStream.bytesWritten).format('0.0b')}`)
+        log(
+          `Downloading... ${numeral(writeStream.bytesWritten).format('0.0 b')} (${numeral(
+            (writeStream.bytesWritten - lastDownloadedBytes) / 5,
+          ).format(
+            '0.0 b',
+          )}/s) ${numeral((Date.now() - startedDownloadingAt) / 1000).format('00:00:00')}`,
+        )
+
+        lastDownloadedBytes = writeStream.bytesWritten
       }, CHUNK_TIMEOUT_MS)
       writeStream.on('finish', () => {
         clearInterval(interval)
