@@ -18,7 +18,7 @@ export async function downloadRoutes() {
     const routes = await getRoutes()
 
     for (const routeId of routes) {
-      log('Uploading route:', routeId)
+      log('Downloading route:', routeId)
       try {
         await downloadRouteVideos(routeId).catch((error) => {
           log(

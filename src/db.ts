@@ -16,6 +16,7 @@ const DEFAULT_DB = {
         {
           downloadedAt?: string
           telegram?: { uploadedUntil?: number }
+          processedAt?: string
         }
       >
     }

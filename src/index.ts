@@ -21,6 +21,7 @@ async function main() {
   await cleanUpTempUploadFiles()
 
   // Initialize telegram bot
+  log('Initializing Telegram bot...')
   const botInfo = await getTelegramBotInfo()
   if (botInfo) {
     log('Telegram bot started:', botInfo.username)

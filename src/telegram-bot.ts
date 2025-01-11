@@ -6,7 +6,10 @@ const debug = require('debug')('comma-sync:telegram-bot')
 debug('Starting Telegram bot...')
 
 export const telegramBot = config.TELEGRAM_BOT_TOKEN
-  ? new TelegramBot(config.TELEGRAM_BOT_TOKEN, { polling: true })
+  ? new TelegramBot(config.TELEGRAM_BOT_TOKEN, {
+      polling: true,
+      baseApiUrl: config.TELEGRAM_API_URL,
+    })
   : null
 
 export async function getTelegramBotInfo() {
