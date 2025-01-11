@@ -119,6 +119,7 @@ async function uploadToTelegram({
             cameras: {
               ...db.routes[routeId]?.cameras,
               [camera]: {
+                ...db.routes[routeId]?.cameras[camera],
                 telegram: { uploadedUntil: Math.max(end, uploadedUntil) },
               },
             },
