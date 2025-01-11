@@ -27,7 +27,6 @@ export type Database = typeof DEFAULT_DB
 export async function verifyDBFile() {
   try {
     await access(DB_PATH)
-    await getDB()
   } catch {
     debug('Database file does not exist, creating:', DB_PATH)
     mkdir(config.DATA_PATH, { recursive: true })
@@ -42,7 +41,8 @@ export async function getDB(): Promise<Database> {
     return db
   } catch (error) {
     debug('Unable to load database:', error)
-    throw error
+    await saveDB(DEFAULT_DB)
+    return DEFAULT_DB
   }
 }
 
