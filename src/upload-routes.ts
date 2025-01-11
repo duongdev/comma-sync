@@ -204,13 +204,13 @@ async function splitVideoToChunks(
 
             onChunkComplete?.(output, startTime, endTime)
 
-            startTime = endTime
-            endTime = Math.min(startTime + 30 * 60, duration)
-
-            if (Math.ceil(endTime) >= duration) {
+            if (endTime >= duration) {
               resolve(undefined)
               return
             }
+
+            startTime = endTime
+            endTime = Math.min(startTime + 30 * 60, duration)
 
             splitPart()
           })
