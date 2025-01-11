@@ -159,10 +159,8 @@ async function uploadToTelegram({
           await saveDB(db)
 
           log('Sent video to Telegram:', fileName)
-        })
-        .finally(() => {
-          unlink(chunkPath)
           log('Removed chunk:', chunkPath)
+          await unlink(chunkPath)
         })
     },
   )
