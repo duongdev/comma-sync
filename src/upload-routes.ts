@@ -206,8 +206,10 @@ async function splitVideoToChunks(
         const output = join(TMP_PATH, `${routeId}-${camera}--${chunkIndex}.mp4`)
 
         ffmpeg(videoPath)
-          .setStartTime(startTime)
-          .setDuration(endTime - startTime)
+          // .setStartTime(startTime)
+          // .setDuration(endTime - startTime)
+          .inputOptions([`-ss ${startTime}`])
+          .outputOptions([`-to ${endTime}`, '-c copy'])
           .output(output)
           .on('end', () => {
             log('Chunk created:', output)
