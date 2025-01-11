@@ -15,7 +15,7 @@ const DEFAULT_DB = {
         string,
         {
           downloadedAt?: string
-          telegram?: { uploadedChunks?: number }
+          telegram?: { uploadedUntil?: number }
         }
       >
     }

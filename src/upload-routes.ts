@@ -3,18 +3,14 @@ import { join } from 'node:path'
 import { format } from 'date-fns'
 import debug from 'debug'
 import ffmpeg from 'fluent-ffmpeg'
+import numeral from 'numeral'
 import { config } from './config'
 import { getDB, saveDB } from './db'
 import { telegramBot } from './telegram-bot'
 import { sleep } from './utils'
 
-const {
-  VIDEOS_PATH,
-  TMP_PATH,
-  TELEGRAM_CHUNK_SIZE,
-  TELEGRAM_MAX_VIDEOS_PER_MESSAGE,
-  DELETE_UPLOADED_VIDEOS,
-} = config
+const { VIDEOS_PATH, TMP_PATH, TELEGRAM_CHUNK_SIZE, DELETE_UPLOADED_VIDEOS } =
+  config
 const IS_TELEGRAM_ENABLED = !!(
   config.TELEGRAM_BOT_TOKEN && config.TELEGRAM_CHAT_ID
 )
@@ -88,46 +84,17 @@ async function uploadToTelegram({
 
   log('Uploading video to Telegram:', videoPath)
 
-  const { birthtime, size } = await stat(videoPath)
+  const { birthtime } = await stat(videoPath)
   const date = format(birthtime, 'yyyy-MM-dd HH:mm:ss')
-  // const fileSize = numeral(size).format('0.0b')
-  const totalChunks = Math.ceil(size / TELEGRAM_CHUNK_SIZE)
   const { height, width, duration } = await getVideoInfo(videoPath)
   let db = await getDB()
-  let uploadedChunks =
-    db.routes[routeId]?.cameras[camera]?.telegram?.uploadedChunks || 0
-
-  if (uploadedChunks >= totalChunks) {
-    log('Video already uploaded:', fileName)
-    return
-  }
-
-  // if (totalChunks === 1) {
-  //   const caption = `🚗 Route: ${date}\n📷 Camera: ${camera}\n💽 Size: ${fileSize}`
-  //   await telegramBot?.sendVideo(
-  //     config.TELEGRAM_CHAT_ID!,
-  //     videoPath,
-  //     {
-  //       caption,
-  //       height,
-  //       width,
-  //       duration,
-  //       // @ts-expect-error
-  //       supports_streaming: true,
-  //     },
-  //     { contentType: 'video/mp4', filename: fileName },
-  //   )
-
-  //   return
-  // }
-
-  let messageIndex = 0
-  const totalMessages = Math.ceil(totalChunks / TELEGRAM_MAX_VIDEOS_PER_MESSAGE)
+  const uploadedUntil =
+    db.routes[routeId]?.cameras[camera]?.telegram?.uploadedUntil || 0
 
   await splitVideoToChunks(
-    { videoPath, routeId, camera, startChunkIndex: uploadedChunks },
-    async (chunkPath) => {
-      const caption = `🚗 Route: ${date}\n📷 Camera: ${camera} (${routeId})\n💽 Part: ${++messageIndex}/${totalMessages}`
+    { videoPath, routeId, camera, uploadedUntil },
+    async (chunkPath, start, end) => {
+      const caption = `🚗 Route: ${date}\n📷 Camera: ${camera} (${routeId})\n⏱︎ Time: ${numeral(start).format('00:00:00')} - ${numeral(end).format('00:00:00')}`
 
       telegramBot
         ?.sendVideo(
@@ -144,15 +111,13 @@ async function uploadToTelegram({
           { contentType: 'video/mp4', filename: fileName },
         )
         .then(async () => {
-          uploadedChunks++
-
           db = await getDB()
           db.routes[routeId] = {
             routeId,
             cameras: {
               ...db.routes[routeId]?.cameras,
               [camera]: {
-                telegram: { uploadedChunks },
+                telegram: { uploadedUntil: end },
               },
             },
           }
@@ -163,11 +128,11 @@ async function uploadToTelegram({
           await unlink(chunkPath)
         })
         .catch(async (error) => {
-          log('Error sending video to Telegram:', error)
+          log('Error sending video to Telegram:', error.message)
           const chunkFileSize = await stat(chunkPath).then(
             (stats) => stats.size,
           )
-          log('Chunk size:', chunkFileSize)
+          log('Chunk size:', numeral(chunkFileSize).format('0.0 b'))
         })
     },
   )
@@ -179,15 +144,15 @@ async function splitVideoToChunks(
     chunkSize = TELEGRAM_CHUNK_SIZE,
     routeId,
     camera,
-    startChunkIndex = 0,
+    uploadedUntil = 0,
   }: {
     videoPath: string
     chunkSize?: number
     routeId: string
     camera: string
-    startChunkIndex?: number
+    uploadedUntil?: number
   },
-  onChunkComplete?: (chunkPath: string) => void,
+  onChunkComplete?: (chunkPath: string, start: number, end: number) => void,
 ) {
   const log = l.extend('splitVideoToChunks')
 
@@ -198,40 +163,60 @@ async function splitVideoToChunks(
         return
       }
 
-      const fileSize = metadata.format.size!
       const duration = metadata.format.duration!
-      const totalParts = Math.ceil(fileSize / chunkSize)
-      const targetDuration = duration / totalParts
+      const fileSize = metadata.format.size!
+      log(
+        `Duration: ${duration}. File size: ${numeral(fileSize).format('0.0 b')}`,
+      )
+      let startTime = uploadedUntil
+      let endTime = startTime + 30 * 60
 
-      let startTime = startChunkIndex * targetDuration
-      let chunkIndex = startChunkIndex
+      const splitPart = () => {
+        const output = join(TMP_PATH, `${routeId}-${camera}--${startTime}.mp4`)
 
-      function splitPart() {
-        const endTime = Math.min(startTime + targetDuration, duration)
-
-        const output = join(TMP_PATH, `${routeId}-${camera}--${chunkIndex}.mp4`)
+        log(
+          `Creating chunk ${startTime}. Start time: ${startTime} - End time: ${endTime} Duration: ${duration}`,
+        )
 
         ffmpeg(videoPath)
-          // .setStartTime(startTime)
-          // .setDuration(endTime - startTime)
           .inputOptions([`-ss ${startTime}`])
-          .outputOptions([`-to ${endTime}`, '-c copy'])
+          .outputOptions([`-t ${endTime - startTime}`, '-c copy'])
           .output(output)
-          .on('end', () => {
-            log('Chunk created:', output)
+          .on('end', async () => {
+            const outputSize = await stat(output).then((stats) => stats.size)
 
-            onChunkComplete?.(output)
+            if (outputSize > chunkSize) {
+              const deltaEndTime = 120
+              if (endTime - deltaEndTime < endTime) {
+                log(
+                  `Chunk too big ${numeral(outputSize).format('0.0 b')}. Decrease ${deltaEndTime} ${numeral(deltaEndTime).format('00:00:00')}...`,
+                )
+                endTime -= deltaEndTime
+                splitPart()
+                return
+              }
+            }
+
+            log(
+              `Chunk created. Start time: ${numeral(startTime).format('0.0')} - End time: ${numeral(endTime).format('0.0')} (${numeral(outputSize).format('0.0 b')})`,
+              output,
+            )
+
+            onChunkComplete?.(output, startTime, endTime)
 
             startTime = endTime
-            chunkIndex++
+            endTime = Math.min(startTime + 30 * 60, duration)
 
-            if (startTime < duration) {
-              splitPart()
-            } else {
+            if (Math.ceil(endTime) >= duration) {
               resolve(undefined)
+              return
             }
+
+            splitPart()
           })
-          .on('error', reject)
+          .on('error', (error) => {
+            reject(error)
+          })
           .run()
       }
 

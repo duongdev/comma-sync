@@ -26,7 +26,7 @@ const DATA_PATH = parsedEnvs.DATA_PATH || join(process.cwd(), 'data')
 const DB_PATH = join(DATA_PATH, 'db.json')
 const VIDEOS_PATH = join(DATA_PATH, 'videos')
 const TMP_PATH = join(DATA_PATH, 'tmp')
-const TELEGRAM_CHUNK_SIZE = 30 * 1024 * 1024
+const TELEGRAM_CHUNK_SIZE = 50 * 1024 * 1024
 const TELEGRAM_MAX_VIDEOS_PER_MESSAGE = 1
 const DELETE_UPLOADED_VIDEOS = parsedEnvs.DELETE_UPLOADED_VIDEOS === 'true'
 
