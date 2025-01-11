@@ -109,7 +109,7 @@ export async function downloadRouteVideos(routeId: string) {
         }
 
         log(
-          `Downloading... ${numeral(writeStream.bytesWritten).format('0.0 b')} (${numeral(
+          `Downloading camera ${camera}... ${numeral(writeStream.bytesWritten).format('0.0 b')} (${numeral(
             (writeStream.bytesWritten - lastDownloadedBytes) / 5,
           ).format(
             '0.0 b',
