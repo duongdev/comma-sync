@@ -1,7 +1,7 @@
 import { createWriteStream } from 'node:fs'
 import { readdir, rename, unlink } from 'node:fs/promises'
 import { join } from 'node:path'
-import axios from 'axios'
+import axios, { AxiosError } from 'axios'
 import numeral from 'numeral'
 import { config } from './config'
 import { getDB, saveDB } from './db'
@@ -21,7 +21,12 @@ export async function downloadRoutes() {
       log('Uploading route:', routeId)
       try {
         await downloadRouteVideos(routeId).catch((error) => {
-          log('Error downloading route videos:', error)
+          log(
+            'Error downloading route videos:',
+            error instanceof AxiosError
+              ? `Status ${error.response?.status}`
+              : error,
+          )
         })
       } catch (error) {
         log('Error downloading route videos:', error)
@@ -29,7 +34,10 @@ export async function downloadRoutes() {
       }
     }
   } catch (error) {
-    log('Error downloading routes:', error)
+    log(
+      'Error downloading routes:',
+      error instanceof AxiosError ? `Status ${error.response?.status}` : error,
+    )
     await sleep(5000)
     await downloadRoutes()
   }
