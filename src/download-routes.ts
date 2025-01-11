@@ -65,9 +65,10 @@ export async function downloadRouteVideos(routeId: string) {
 
   for (const camera of config.CAMERAS) {
     let db = await getDB()
+    const dbRouteKey = routeId.split('--')[0]
 
     // Skip if the camera video has already been downloaded
-    if (db.routes[routeId]?.cameras[camera]?.downloadedAt) {
+    if (db.routes[dbRouteKey]?.cameras[camera]?.downloadedAt) {
       log('Camera video already downloaded:', camera)
       continue
     }
@@ -145,10 +146,10 @@ export async function downloadRouteVideos(routeId: string) {
 
     // Log the downloaded video
     db = await getDB()
-    db.routes[routeId] = {
-      routeId,
+    db.routes[dbRouteKey] = {
+      routeId: dbRouteKey,
       cameras: {
-        ...db.routes[routeId]?.cameras,
+        ...db.routes[dbRouteKey]?.cameras,
         [camera]: {
           downloadedAt: new Date().toISOString(),
         },
