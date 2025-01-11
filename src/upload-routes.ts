@@ -126,7 +126,7 @@ async function uploadToTelegram({
 
   await splitVideoToChunks(
     { videoPath, routeId, camera, startChunkIndex: uploadedChunks },
-    (chunkPath) => {
+    async (chunkPath) => {
       const caption = `🚗 Route: ${date}\n📷 Camera: ${camera} (${routeId})\n💽 Part: ${++messageIndex}/${totalMessages}`
 
       telegramBot
@@ -161,6 +161,13 @@ async function uploadToTelegram({
           log('Sent video to Telegram:', fileName)
           log('Removed chunk:', chunkPath)
           await unlink(chunkPath)
+        })
+        .catch(async (error) => {
+          log('Error sending video to Telegram:', error)
+          const chunkFileSize = await stat(chunkPath).then(
+            (stats) => stats.size,
+          )
+          log('Chunk size:', chunkFileSize)
         })
     },
   )
