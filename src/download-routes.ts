@@ -69,6 +69,7 @@ export async function downloadRouteVideos(routeId: string) {
     if (DELETE_UPLOADED_VIDEOS && typeof MAX_VIDEOS === 'number') {
       // Wait for the video to be uploaded before downloading the next one
       await new Promise((resolve) => {
+        let logged = false
         const interval = setInterval(async () => {
           const videos = (await readdir(config.VIDEOS_PATH)).filter((file) =>
             file.endsWith('.mp4'),
@@ -80,7 +81,10 @@ export async function downloadRouteVideos(routeId: string) {
             return
           }
 
-          log(`Max videos reached (${MAX_VIDEOS}), waiting for uploads...`)
+          if (!logged) {
+            log(`Max videos reached (${MAX_VIDEOS}), waiting for uploads...`)
+            logged = true
+          }
         }, 5000)
       })
     }

@@ -213,6 +213,7 @@ async function uploadToTelegram(
   if (typeof config.MAX_TMP_GB === 'number') {
     // if the tmp folder is full, wait for it to be cleaned up
     await new Promise((resolve) => {
+      let logged = false
       const interval = setInterval(async () => {
         const { size: currentSize } = await stat(TMP_PATH)
 
@@ -222,7 +223,10 @@ async function uploadToTelegram(
           return
         }
 
-        log('tmp folder is full, waiting for cleanup...')
+        if (!logged) {
+          log('tmp folder is full, waiting for cleanup...')
+          logged = true
+        }
       }, 5000)
     })
   }
