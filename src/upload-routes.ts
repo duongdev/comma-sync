@@ -88,7 +88,7 @@ async function uploadToTelegram({
   const date = format(birthtime, 'yyyy-MM-dd HH:mm:ss')
   const { height, width, duration } = await getVideoInfo(videoPath)
   let db = await getDB()
-  const uploadedUntil =
+  let uploadedUntil =
     db.routes[routeId]?.cameras[camera]?.telegram?.uploadedUntil || 0
 
   await splitVideoToChunks(
@@ -112,12 +112,14 @@ async function uploadToTelegram({
         )
         .then(async () => {
           db = await getDB()
+          uploadedUntil =
+            db.routes[routeId]?.cameras[camera]?.telegram?.uploadedUntil || 0
           db.routes[routeId] = {
             routeId,
             cameras: {
               ...db.routes[routeId]?.cameras,
               [camera]: {
-                telegram: { uploadedUntil: end },
+                telegram: { uploadedUntil: Math.max(end, uploadedUntil) },
               },
             },
           }
