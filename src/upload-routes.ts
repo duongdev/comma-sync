@@ -193,7 +193,8 @@ async function splitVideoToChunks(
 
       const fileSize = metadata.format.size!
       const duration = metadata.format.duration!
-      const targetDuration = (chunkSize / fileSize) * duration
+      const totalParts = Math.ceil(fileSize / chunkSize)
+      const targetDuration = duration / totalParts
 
       let startTime = startChunkIndex * targetDuration
       let chunkIndex = startChunkIndex
