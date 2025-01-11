@@ -64,6 +64,27 @@ export async function downloadRouteVideos(routeId: string) {
   const log = debug.extend(`downloadRouteVideos:${routeId}`)
 
   for (const camera of config.CAMERAS) {
+    const { MAX_VIDEOS, DELETE_UPLOADED_VIDEOS } = config
+
+    if (DELETE_UPLOADED_VIDEOS && typeof MAX_VIDEOS === 'number') {
+      // Wait for the video to be uploaded before downloading the next one
+      await new Promise((resolve) => {
+        const interval = setInterval(async () => {
+          const videos = (await readdir(config.VIDEOS_PATH)).filter((file) =>
+            file.endsWith('.mp4'),
+          )
+
+          if (videos.length < MAX_VIDEOS) {
+            clearInterval(interval)
+            resolve(undefined)
+            return
+          }
+
+          log(`Max videos reached (${MAX_VIDEOS}), waiting for uploads...`)
+        }, 5000)
+      })
+    }
+
     let db = await getDB()
     const dbRouteKey = routeId.split('--')[0]
 

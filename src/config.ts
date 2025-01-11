@@ -20,6 +20,8 @@ const parsedEnvs = parsed! as {
   TELEGRAM_BOT_TOKEN?: string
   TELEGRAM_CHAT_ID?: string
   TELEGRAM_API_URL: string
+  MAX_VIDEOS: string
+  MAX_TMP_GB: string
 }
 
 const CAMERAS = parsedEnvs.CAMERAS?.split(',') || ['ecamera', 'dcamera']
@@ -30,6 +32,8 @@ const TMP_PATH = join(DATA_PATH, 'tmp')
 const TELEGRAM_CHUNK_SIZE = 2000 * 1024 * 1024
 const TELEGRAM_MAX_VIDEOS_PER_MESSAGE = 1
 const DELETE_UPLOADED_VIDEOS = parsedEnvs.DELETE_UPLOADED_VIDEOS === 'true'
+const MAX_VIDEOS = Number(parsedEnvs.MAX_VIDEOS)
+const MAX_TMP_GB = Number(parsedEnvs.MAX_TMP_GB)
 
 export const config = {
   ...parsedEnvs,
@@ -41,4 +45,6 @@ export const config = {
   TELEGRAM_CHUNK_SIZE,
   TELEGRAM_MAX_VIDEOS_PER_MESSAGE,
   DELETE_UPLOADED_VIDEOS,
+  MAX_VIDEOS,
+  MAX_TMP_GB,
 }

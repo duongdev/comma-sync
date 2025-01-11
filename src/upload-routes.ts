@@ -210,6 +210,23 @@ async function uploadToTelegram(
   const log = l.extend('uploadToTelegram')
   const videoPath = join(VIDEOS_PATH, fileName)
 
+  if (typeof config.MAX_TMP_GB === 'number') {
+    // if the tmp folder is full, wait for it to be cleaned up
+    await new Promise((resolve) => {
+      const interval = setInterval(async () => {
+        const { size: currentSize } = await stat(TMP_PATH)
+
+        if (currentSize < config.MAX_TMP_GB * 1024 * 1024 * 1024) {
+          clearInterval(interval)
+          resolve(undefined)
+          return
+        }
+
+        log('tmp folder is full, waiting for cleanup...')
+      }, 5000)
+    })
+  }
+
   log('Uploading video to Telegram:', videoPath)
 
   const { birthtime } = await stat(videoPath)
