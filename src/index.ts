@@ -29,7 +29,7 @@ async function main() {
       reply_markup: {
         keyboard: [
           [{ text: '/upload_queue' }, { text: '/routes' }],
-          [{ text: '/chat_id' }, { text: '/restart' }, { text: '/reset_db' }],
+          [{ text: '/update' }, { text: '/restart' }, { text: '/reset_db' }],
         ],
       },
     })

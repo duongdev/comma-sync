@@ -1,3 +1,4 @@
+import { execSync } from 'child_process'
 import { statSync } from 'fs'
 import { format } from 'date-fns'
 import TelegramBot from 'node-telegram-bot-api'
@@ -121,7 +122,19 @@ telegramBot?.on('message', async (msg) => {
         return
       }
       await telegramBot?.sendMessage(chatId, 'Restarting...')
-      return process.exit(0)
+      return process.exit(1)
+    }
+
+    case '/update': {
+      await telegramBot?.sendMessage(chatId, 'Updating...')
+
+      // pull latest changes from git
+      const result = execSync('git reset --hard && git clean -f -d && git pull')
+
+      await telegramBot?.sendMessage(chatId, result.toString())
+      await telegramBot?.sendMessage(chatId, 'Restarting...')
+
+      return process.exit(1)
     }
     default: {
       return

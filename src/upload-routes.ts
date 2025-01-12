@@ -182,7 +182,7 @@ export async function uploadRouteVideo(fileName: string) {
     )
     await telegramBot?.sendMessage(
       config.TELEGRAM_CHAT_ID!,
-      `Route: *${routeId}* ${camera} uploaded\nDuration: *${numeral(duration).format('00:00:00')}*\nChunks: *${totalChunks}*\nSize: *${numeral(totalSize).format('0.0 b')}*`.replace(
+      `Route: *${routeId}* ${camera} processed\nDuration: *${numeral(duration).format('00:00:00')}*\nChunks: *${totalChunks}*\nSize: *${numeral(totalSize).format('0.0 b')}*`.replace(
         /\./g,
         '\\.',
       ),
