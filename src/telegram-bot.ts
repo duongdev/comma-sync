@@ -110,7 +110,7 @@ telegramBot?.on('message', async (msg) => {
 
       return
     }
-    case 'reset_db': {
+    case '/reset_db': {
       await saveDB(DEFAULT_DB)
       return telegramBot?.sendMessage(chatId, 'Database reset')
     }
