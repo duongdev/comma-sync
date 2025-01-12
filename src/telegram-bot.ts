@@ -112,6 +112,7 @@ telegramBot?.on('message', async (msg) => {
       return telegramBot?.sendMessage(chatId, 'Database reset')
     }
     case '/restart': {
+      await telegramBot?.sendMessage(chatId, 'Restarting...')
       return process.exit(0)
     }
     default: {
