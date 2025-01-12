@@ -98,17 +98,15 @@ telegramBot?.on('message', async (msg) => {
           : '-',
       }))
 
-      const message = routes
-        .map((route) => `*${route.routeId}* ${route.cameras}\n`)
-        .join('\n')
+      for (const route of routes) {
+        const message = `*${route.routeId}*\n${route.cameras}`
+          .replace(/\./g, '\\.')
+          .replace(/\-/g, '\\-')
 
-      await telegramBot?.sendMessage(
-        chatId,
-        message.replace(/\./g, '\\.').replace(/\-/g, '\\-'),
-        {
+        await telegramBot?.sendMessage(chatId, message, {
           parse_mode: 'MarkdownV2',
-        },
-      )
+        })
+      }
 
       return
     }
