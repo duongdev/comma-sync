@@ -5,7 +5,7 @@ const debug = require('debug')('comma-sync:db')
 
 const { DB_PATH } = config
 
-const DEFAULT_DB = {
+export const DEFAULT_DB = {
   version: 1,
   routes: {} as Record<
     string,

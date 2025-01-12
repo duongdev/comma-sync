@@ -16,7 +16,7 @@ const IS_TELEGRAM_ENABLED = !!(
 )
 const l = debug('comma-sync:upload-routes')
 
-const telegramQueue = generateTelegramQueue()
+export const telegramQueue = generateTelegramQueue()
 
 export async function uploadRouteVideos() {
   const log = l.extend('uploadRouteVideos')
@@ -161,7 +161,7 @@ function generateTelegramQueue() {
   }
   process()
 
-  return { addToQueue }
+  return { addToQueue, queue }
 }
 
 export async function uploadRouteVideo(fileName: string) {
@@ -176,7 +176,34 @@ export async function uploadRouteVideo(fileName: string) {
   }
 
   if (IS_TELEGRAM_ENABLED) {
-    await uploadToTelegram({ camera, fileName, routeId }, telegramQueue)
+    const { duration, totalChunks, totalSize } = await uploadToTelegram(
+      { camera, fileName, routeId },
+      telegramQueue,
+    )
+    await telegramBot?.sendMessage(
+      config.TELEGRAM_CHAT_ID!,
+      `Route: *${routeId}* ${camera} uploaded\nDuration: *${numeral(duration).format('00:00:00')}*\nChunks: *${totalChunks}*\nSize: *${numeral(totalSize).format('0.0 b')}*`.replace(
+        /\./g,
+        '\\.',
+      ),
+      {
+        parse_mode: 'MarkdownV2',
+        reply_markup: {
+          inline_keyboard: [
+            [
+              {
+                text: 'Force re-upload',
+                callback_data: `/reupload:${fileName}`,
+              },
+              {
+                text: 'Force re-download',
+                callback_data: `/redownload:${fileName}`,
+              },
+            ],
+          ],
+        },
+      },
+    )
   }
 
   log('Video uploaded:', fileName)
@@ -241,11 +268,11 @@ async function uploadToTelegram(
 
   async function processChunks() {
     let chunks = -1
-    splitVideoToChunks(
+    return await splitVideoToChunks(
       { videoPath, routeId, camera, uploadedUntil },
-      async (chunkPath, start, end) => {
+      async (chunkPath, start, end, duration) => {
         chunks = chunks === -1 ? 1 : chunks + 1
-        const caption = `🚗 Route: ${date}\n📷 Camera: ${camera} (${routeId})\n⏱︎ Time: ${numeral(start).format('00:00:00')} - ${numeral(end).format('00:00:00')}`
+        const caption = `🚗 Route: ${date}\n📷 Camera: ${camera} (${routeId})\n⏰ Time: ${numeral(start).format('00:00:00')} - ${numeral(end).format('00:00:00')} / ${numeral(duration).format('00:00:00')}`
 
         await addToQueue({
           filePath: chunkPath,
@@ -256,17 +283,19 @@ async function uploadToTelegram(
         })
 
         chunks -= 1
+
+        while (chunks !== 0) {
+          await sleep(1000)
+        }
       },
     )
-
-    while (chunks !== 0) {
-      await sleep(5000)
-    }
   }
 
-  await processChunks()
-
-  log('Video uploaded to Telegram:', videoPath)
+  const processed = await processChunks()
+  log(
+    `Video uploaded to Telegram: ${videoPath}. Chunks: ${processed.totalChunks}. Size: ${numeral(processed.totalSize).format('0.0 b')}. Duration: ${numeral(processed.duration).format('00:00:00')}`,
+  )
+  return processed
 }
 
 async function splitVideoToChunks(
@@ -283,9 +312,24 @@ async function splitVideoToChunks(
     camera: string
     uploadedUntil?: number
   },
-  onChunkComplete?: (chunkPath: string, start: number, end: number) => void,
-) {
+  onChunkComplete?: (
+    chunkPath: string,
+    start: number,
+    end: number,
+    duration: number,
+  ) => void,
+): Promise<{
+  duration: number
+  totalChunks: number
+  totalSize: number
+  videoPath: string
+  routeId: string
+  camera: string
+}> {
   const log = l.extend('splitVideoToChunks')
+
+  let totalChunks = 0
+  let totalSize = 0
 
   return new Promise((resolve, reject) => {
     ffmpeg.ffprobe(videoPath, (err, metadata) => {
@@ -299,25 +343,28 @@ async function splitVideoToChunks(
       log(
         `Duration: ${numeral(duration).format('00:00:00')}. File size: ${numeral(fileSize).format('0.0 b')}`,
       )
-      // let startTime = uploadedUntil
-      // let endTime = startTime + 30 * 60
 
-      const splitPart = (
-        startTime = uploadedUntil,
-        endTime = Math.min(duration, startTime + 30 * 60),
-      ) => {
+      const splitPart = (startTime: number, endTime: number) => {
+        log(
+          `Creating chunk ${startTime}. Start time: ${numeral(startTime).format('00:00:00')} - End time: ${numeral(endTime).format('00:00:00')} Duration: ${numeral(duration).format('00:00:00')}`,
+          { startTime, endTime },
+        )
+
         if (uploadedUntil >= duration || endTime > duration) {
-          resolve(undefined)
+          resolve({
+            duration,
+            totalChunks,
+            totalSize,
+            videoPath,
+            routeId,
+            camera,
+          })
           return
         }
 
         const output = join(
           TMP_PATH,
           `${routeId}-${camera}--${numeral(startTime).format('00:00:00').replace(/:/g, '_')}.mp4`,
-        )
-
-        log(
-          `Creating chunk ${startTime}. Start time: ${numeral(startTime).format('00:00:00')} - End time: ${numeral(endTime).format('00:00:00')} Duration: ${numeral(duration).format('00:00:00')}`,
         )
 
         ffmpeg(videoPath)
@@ -343,18 +390,36 @@ async function splitVideoToChunks(
               output,
             )
 
-            onChunkComplete?.(output, startTime, endTime)
+            totalChunks += 1
+            totalSize += outputSize
+
+            onChunkComplete?.(output, startTime, endTime, duration)
 
             if (
               Math.abs(endTime - duration) <= 2 ||
               startTime >= endTime ||
               endTime >= duration
             ) {
-              resolve(undefined)
+              resolve({
+                duration,
+                totalChunks,
+                totalSize,
+                videoPath,
+                routeId,
+                camera,
+              })
               return
             }
 
-            splitPart(endTime, Math.min(startTime + 30 * 60, duration))
+            log('Calling new chunk...', {
+              current: { startTime, endTime, duration },
+              next: {
+                startTime: endTime,
+                endTime: Math.min(endTime + 30 * 60, duration),
+              },
+            })
+
+            splitPart(endTime, Math.min(endTime + 30 * 60, duration))
           })
           .on('error', (error) => {
             reject(error)
@@ -362,7 +427,7 @@ async function splitVideoToChunks(
           .run()
       }
 
-      splitPart()
+      splitPart(uploadedUntil, Math.min(duration, uploadedUntil + 30 * 60))
     })
   })
 }

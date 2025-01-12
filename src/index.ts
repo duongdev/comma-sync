@@ -3,7 +3,7 @@ import { config } from './config'
 import { verifyDBFile } from './db'
 import { cleanUpTempDownloadFiles, downloadRoutes } from './download-routes'
 import { verifyPath } from './fs'
-import { getTelegramBotInfo } from './telegram-bot'
+import { getTelegramBotInfo, sendTelegramMessage } from './telegram-bot'
 import { cleanUpTempUploadFiles, uploadRouteVideos } from './upload-routes'
 
 Debug.enable('comma-sync:*')
@@ -25,16 +25,23 @@ async function main() {
   const botInfo = await getTelegramBotInfo()
   if (botInfo) {
     log('Telegram bot started:', botInfo.username)
-    // sendTelegramMessage('🚀 Comma Sync started')
+    sendTelegramMessage('🚘 Car started. Drive safe!', {
+      reply_markup: {
+        keyboard: [
+          [{ text: '/upload_queue' }, { text: '/routes' }],
+          [{ text: '/chat_id' }, { text: '/restart' }, { text: '/reset_db' }],
+        ],
+      },
+    })
   } else {
     log('Telegram bot not enabled')
   }
 
-  downloadRoutes()
+  // downloadRoutes()
   uploadRouteVideos()
 }
 
-main().catch((error) => {
+main().catch(async (error) => {
   console.error('An error occurred:', error)
   process.exit(1)
 })
