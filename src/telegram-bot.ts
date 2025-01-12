@@ -79,10 +79,10 @@ telegramBot?.on('message', async (msg) => {
     }
     case '/routes': {
       const db = await getDB()
-      const routeIds = (await getRoutes())
+      let routeIds = (await getRoutes())
         .map((routeId) => routeId.split('--')[0])
         .concat(Object.keys(db.routes))
-        .sort()
+      routeIds = Array.from(new Set(routeIds))
 
       debug({ routeIds, db: db.routes })
 
