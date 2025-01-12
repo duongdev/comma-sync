@@ -127,10 +127,15 @@ telegramBot?.on('message', async (msg) => {
       await telegramBot?.sendMessage(chatId, 'Updating...')
 
       // pull latest changes from git
-      const result = execSync('git reset --hard && git clean -f -d && git pull')
+      execSync('git reset --hard && git clean -f -d && git pull')
+      const latestCommit = execSync(
+        'git log --pretty=format:"%h - %s" -n 1',
+      ).toString()
 
-      await telegramBot?.sendMessage(chatId, result.toString())
+      await telegramBot?.sendMessage(chatId, `Updated to: ${latestCommit}`)
       await telegramBot?.sendMessage(chatId, 'Restarting...')
+
+      execSync('npm install --from-lockfile')
 
       return process.exit(1)
     }
