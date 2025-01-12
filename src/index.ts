@@ -37,7 +37,7 @@ async function main() {
     log('Telegram bot not enabled')
   }
 
-  // downloadRoutes()
+  downloadRoutes()
   uploadRouteVideos()
 }
 

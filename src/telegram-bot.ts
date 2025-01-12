@@ -118,12 +118,6 @@ telegramBot?.on('message', async (msg) => {
     case '/restart': {
       // Don't restart if the bot was initialized less than 30s ago
       if (Date.now() - initializedAt < 30000) {
-        await telegramBot?.sendMessage(
-          chatId,
-          `Bot is initializing, please wait for ${Math.round(
-            (30000 - (Date.now() - initializedAt)) / 1000,
-          )}s before restarting`,
-        )
         return
       }
       await telegramBot?.sendMessage(chatId, 'Restarting...')
