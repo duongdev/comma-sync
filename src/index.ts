@@ -4,7 +4,7 @@ import { verifyDBFile } from './db'
 import { cleanUpTempDownloadFiles, downloadRoutes } from './download-routes'
 import { verifyPath } from './fs'
 import { getTelegramBotInfo, sendTelegramMessage } from './telegram-bot'
-import { cleanUpTempUploadFiles, uploadRouteVideos } from './upload-routes'
+import { uploadRouteVideos } from './upload-routes'
 
 Debug.enable('comma-sync:*')
 const debug = Debug('comma-sync')
@@ -18,7 +18,7 @@ async function main() {
   verifyPath(config.VIDEOS_PATH)
   verifyPath(config.TMP_PATH)
   await cleanUpTempDownloadFiles()
-  await cleanUpTempUploadFiles()
+  // await cleanUpTempUploadFiles()
 
   // Initialize telegram bot
   log('Initializing Telegram bot...')
