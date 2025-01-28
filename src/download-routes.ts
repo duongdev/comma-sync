@@ -14,6 +14,18 @@ const debug = require('debug')('comma-sync:routes')
 export async function downloadRoutes() {
   const log = debug.extend('downloadRoutes')
 
+  // Check if WAIT_EMPTY_UPLOADS is enabled and there are files to upload
+  // If there are files to upload, wait for them to be uploaded before downloading the routes
+  if (config.WAIT_EMPTY_UPLOADS) {
+    const filesToUpload = await readdir(config.TMP_PATH)
+    if (filesToUpload.length > 0) {
+      log('Waiting for empty uploads...')
+      await sleep(5000)
+      await downloadRoutes()
+      return
+    }
+  }
+
   try {
     const routes = await getRoutes()
 

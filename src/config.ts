@@ -22,6 +22,7 @@ const parsedEnvs = parsed! as {
   TELEGRAM_API_URL: string
   MAX_VIDEOS: string
   MAX_TMP_GB: string
+  WAIT_EMPTY_UPLOADS: string
 }
 
 const CAMERAS = parsedEnvs.CAMERAS?.split(',') || ['ecamera', 'dcamera']
@@ -34,6 +35,7 @@ const TELEGRAM_MAX_VIDEOS_PER_MESSAGE = 1
 const DELETE_UPLOADED_VIDEOS = parsedEnvs.DELETE_UPLOADED_VIDEOS === 'true'
 const MAX_VIDEOS = Number(parsedEnvs.MAX_VIDEOS)
 const MAX_TMP_GB = Number(parsedEnvs.MAX_TMP_GB)
+const WAIT_EMPTY_UPLOADS = parsedEnvs.WAIT_EMPTY_UPLOADS === 'true'
 
 export const config = {
   ...parsedEnvs,
@@ -47,4 +49,5 @@ export const config = {
   DELETE_UPLOADED_VIDEOS,
   MAX_VIDEOS,
   MAX_TMP_GB,
+  WAIT_EMPTY_UPLOADS,
 }
