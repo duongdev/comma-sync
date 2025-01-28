@@ -14,18 +14,6 @@ const debug = require('debug')('comma-sync:routes')
 export async function downloadRoutes() {
   const log = debug.extend('downloadRoutes')
 
-  // Check if WAIT_EMPTY_UPLOADS is enabled and there are files to upload
-  // If there are files to upload, wait for them to be uploaded before downloading the routes
-  if (config.WAIT_EMPTY_UPLOADS) {
-    const filesToUpload = await readdir(config.TMP_PATH)
-    if (filesToUpload.length > 0) {
-      log('Waiting for empty uploads...')
-      await sleep(5000)
-      await downloadRoutes()
-      return
-    }
-  }
-
   try {
     const routes = await getRoutes()
 
@@ -76,7 +64,19 @@ export async function downloadRouteVideos(routeId: string) {
   const log = debug.extend(`downloadRouteVideos:${routeId}`)
 
   for (const camera of config.CAMERAS) {
-    const { MAX_VIDEOS, DELETE_UPLOADED_VIDEOS } = config
+    const { MAX_VIDEOS, DELETE_UPLOADED_VIDEOS, WAIT_EMPTY_UPLOADS } = config
+
+    // Check if WAIT_EMPTY_UPLOADS is enabled and there are files to upload
+    // If there are files to upload, wait for them to be uploaded before downloading the route
+    if (WAIT_EMPTY_UPLOADS) {
+      const filesToUpload = await readdir(config.TMP_PATH)
+      if (filesToUpload.length > 0) {
+        log('Waiting for empty uploads...')
+        await sleep(5000)
+        await downloadRouteVideos(routeId)
+        return
+      }
+    }
 
     if (DELETE_UPLOADED_VIDEOS && typeof MAX_VIDEOS === 'number') {
       // Wait for the video to be uploaded before downloading the next one
